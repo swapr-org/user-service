@@ -1,0 +1,52 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    default: local
+  datasource:
+    url: ${DATABASE_URL:}
+    username: ${DATABASE_USERNAME:}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+  flyway:
+    enabled: true
+  docker:
+    compose:
+      enabled: false
+  mvc:
+    problemdetails:
+      enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SUPABASE_URL:}/auth/v1
+          jwk-set-uri: ${SUPABASE_URL:}/auth/v1/.well-known/jwks.json
+          audiences: authenticated
+          jws-algorithms: ES256,RS256
+          principal-claim-name: sub
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-components: always
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+
+swapr:
+  internal-token: ${INTERNAL_TOKEN:}
+  cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}

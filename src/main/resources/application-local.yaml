@@ -1,0 +1,9 @@
+spring:
+  docker:
+    compose:
+      enabled: true
+      file: docker-compose.yml
+
+SUPABASE_URL: https://ruojssnpbeyzlornnimk.supabase.co
+INTERNAL_TOKEN: local-internal-token
+CORS_ALLOWED_ORIGINS: http://localhost:5173
