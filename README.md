@@ -8,11 +8,13 @@ Stack: Java 25, Spring Boot 4, Maven, Flyway, Checkstyle (Google rules, 120 colu
 
 Prerequisites: Docker and JDK 25.
 
+Once, copy `.env.example` to `.env` and fill in the QA Supabase project URL and any non-empty local internal token. `.env` is gitignored.
+
 ```sh
 ./mvnw spring-boot:run
 ```
 
-With no profile set, the `local` profile is active. Spring Boot's Docker Compose support starts the PostGIS database from `docker-compose.yml` and wires the connection in. Local auth points at the QA Supabase project, so sign in through the QA project to get a JWT. Any environment variable from the table below overrides the `local` defaults.
+With no profile set, the `local` profile is active. It reads `.env` from the repo root, and Spring Boot's Docker Compose support starts the PostGIS database from `docker-compose.yml` and wires the connection in. Local auth points at the QA Supabase project, so sign in through the QA project to get a JWT. Real environment variables override the values in `.env`.
 
 Run the linter and unit tests with:
 
@@ -31,11 +33,11 @@ The unit tests start a PostGIS container through Testcontainers, so Docker must 
 | `DATABASE_URL` | JDBC URL, for example `jdbc:postgresql://<host>/<db>?sslmode=require`. Neon needs `sslmode=require`. | none (local uses Docker Compose) |
 | `DATABASE_USERNAME` | Database user. | none |
 | `DATABASE_PASSWORD` | Database password. Secret. | none |
-| `SUPABASE_URL` | Supabase project URL, for example `https://<ref>.supabase.co`. The JWT issuer and JWKS address are built from it. | QA project in `local` |
-| `INTERNAL_TOKEN` | Shared service-to-service secret for `/internal/**`. Secret. Startup fails when it is empty. | `local-internal-token` in `local` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated origins allowed to call `/v1/**` from a browser. | `http://localhost:5173` in `local` |
+| `SUPABASE_URL` | Supabase project URL, for example `https://<ref>.supabase.co`. The JWT issuer and JWKS address are built from it. | none (`.env` locally) |
+| `INTERNAL_TOKEN` | Shared service-to-service secret for `/internal/**`. Secret. Startup fails when it is empty. | none (`.env` locally) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated origins allowed to call `/v1/**` from a browser. | none (`.env` locally) |
 
-YAML holds defaults only. Secrets are set in Render and never committed.
+YAML holds defaults only and reads every per-environment value from an environment variable, including for local runs. Locally those come from `.env`; in QA and prod they are set in Render. Secrets are never committed.
 
 ## Endpoints and security
 
@@ -43,7 +45,7 @@ YAML holds defaults only. Secrets are set in Render and never committed.
 - `/actuator/health/liveness` ignores the database. Render's health check uses it, so a slow Neon wake-up does not fail deploys or restart the instance.
 - `/v3/api-docs` serves the OpenAPI document without auth.
 - `/v1/**` needs a Supabase JWT: issuer `<SUPABASE_URL>/auth/v1`, audience `authenticated`, signed by a key from the project's JWKS. The `sub` claim is the user's UUID and the principal name.
-- `/internal/**` needs the `X-Internal-Token` header and rejects any request carrying an `Authorization` header.
+- `/internal/**` needs the `X-Internal-Token` header. A missing or wrong token gets 401. A request with the right token that also carries an `Authorization` header gets 403, so user JWTs never reach internal endpoints.
 - Every other path is denied. Authentication and access errors are RFC 9457 Problem Details.
 
 ## Pipeline

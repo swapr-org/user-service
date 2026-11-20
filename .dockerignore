@@ -3,3 +3,4 @@ worktrees/
 .git
 .idea/
 *.iml
+.env

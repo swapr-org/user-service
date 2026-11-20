@@ -80,6 +80,17 @@ class InternalTokenFilterTest {
   }
 
   @Test
+  void rejectsInternalRequestCarryingAuthorizationHeaderWithoutTokenAs401() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/internal/v1/users");
+    request.addHeader("Authorization", "Bearer user.jwt.token");
+
+    filter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(chain.getRequest()).isNull();
+  }
+
+  @Test
   void ignoresRequestsOutsideInternalPaths() throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/v1/internals");
     request.addHeader("Authorization", "Bearer user.jwt.token");
