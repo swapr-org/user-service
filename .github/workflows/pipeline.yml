@@ -66,7 +66,7 @@ jobs:
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           IMAGE: ${{ needs.image.outputs.image }}
           DEPLOY_ENV: qa
-        run: bash .github/render-deploy.sh
+        run: bash .github/scripts/render-deploy.sh
 
   e2e:
     needs: deploy-qa
@@ -87,4 +87,4 @@ jobs:
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           IMAGE: ${{ needs.image.outputs.image }}
           DEPLOY_ENV: prod
-        run: bash .github/render-deploy.sh
+        run: bash .github/scripts/render-deploy.sh
