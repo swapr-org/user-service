@@ -50,14 +50,17 @@ YAML holds defaults only and reads every per-environment value from an environme
 
 ## Pipeline
 
-`.github/workflows/pipeline.yml` has four jobs:
+`.github/workflows/pipeline.yml` has five jobs:
 
 1. `verify` runs `./mvnw verify` (Checkstyle and unit tests) on every push to any branch and on pull requests. Any Checkstyle warning or failing test fails the run.
 2. `image` runs on pushes to `main` only. It builds the native image from the `Dockerfile` and pushes `ghcr.io/<org>/user-service:<commit-sha>`. There is no `latest` tag.
-3. `deploy-qa` calls the Render deploy hook in the GitHub Environment `qa` with that exact image.
-4. `deploy-prod` waits for approval on the GitHub Environment `prod`, then calls the prod deploy hook with the same image. It never rebuilds, so prod runs only what QA ran.
+3. `deploy-qa` deploys that exact image to QA through the Render deploy hook in the GitHub Environment `qa`, and waits until the deploy is live.
+4. `e2e` runs the whole integration test suite against QA by calling `integration-test-suite`'s reusable workflow. A failing suite skips `deploy-prod`, so no prod approval is offered.
+5. `deploy-prod` waits for approval on the GitHub Environment `prod`, then deploys the same image to prod and waits until it is live. It never rebuilds, so prod runs only what passed in QA.
 
-Deploy jobs share a concurrency group per environment, so two runs never deploy at once and older pending prod approvals are cancelled. After a deploy, check `/actuator/health` by hand and confirm `db` is `UP`.
+Both deploy jobs run `.github/scripts/render-deploy.sh`. It triggers the deploy hook, reads the deploy ID from the response, sleeps 5 minutes, then polls the Render API every 15 seconds until the deploy is `live`. A failed, cancelled or replaced deploy, an error response, or no live deploy 15 minutes after the trigger fails the job with an `::error::` annotation naming the environment, the deploy ID and the last status. Render 5xx responses are retried until the limit.
+
+The workflow has one concurrency group per branch, so runs on `main` go one at a time from QA deploy through prod deploy, and a later merge can never replace the QA build while an earlier one is being tested. A run waiting for prod approval holds the group, so approve or reject it to let the next merge deploy. Only the newest queued run is kept. After a deploy, check `/actuator/health` by hand and confirm `db` is `UP`.
 
 Build the native image locally with `docker build -t user-service .`, or without Docker using `./mvnw -Pnative native:compile` on a GraalVM JDK 25.
 
@@ -79,6 +82,10 @@ Follow these steps to start a new service, for example `listing-service`, from t
    - deploy from an existing image, `ghcr.io/<org>/<service>:<sha>`;
    - set the health check path to `/actuator/health/liveness`;
    - set the environment variables `SPRING_PROFILES_ACTIVE` (`qa` or `prod`), `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `SUPABASE_URL`, `INTERNAL_TOKEN` and `CORS_ALLOWED_ORIGINS`. Render sets `PORT`.
-5. **Add the deploy hooks** to GitHub: copy each Render service's deploy hook URL into the secret `RENDER_DEPLOY_HOOK_URL` of the GitHub Environment `qa` or `prod`. The `prod` Environment must have required reviewers, which only works while the repo is public.
+5. **Add the deploy settings** to GitHub, in the GitHub Environment `qa` or `prod`:
+   - the secret `RENDER_DEPLOY_HOOK_URL`: the Render service's deploy hook URL;
+   - the variable `RENDER_SERVICE_ID`: the Render service's `srv-…` ID.
+
+   The org-level secret `RENDER_API_KEY` (a read-only Render key) already covers every service. The `prod` Environment must have required reviewers, which only works while the repo is public.
 6. **Make the GHCR package public** after the first `image` job pushes it (GitHub org, Packages, the package, Package settings, Change visibility). Render pulls without credentials, so the first QA deploy may fail until this is done; re-run the `deploy-qa` job afterwards.
 7. **Remove anything `user-service`-specific**: its migrations under `src/main/resources/db/migration`, its domain code and tests, and any README sections that describe its domain. Keep the security package, the health configuration and the context test.
