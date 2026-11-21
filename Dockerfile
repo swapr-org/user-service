@@ -6,10 +6,11 @@ RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
 COPY src/ src/
 RUN ./mvnw -B -Pnative -DskipTests -Dcheckstyle.skip native:compile
 
-FROM gcr.io/distroless/base-debian12:nonroot
+FROM debian:12-slim
+RUN useradd --system --uid 10001 --no-create-home app
 WORKDIR /app
 COPY --from=build /workspace/target/user-service /app/user-service
 ENV PORT=8080
 EXPOSE 8080
-USER nonroot
+USER app
 ENTRYPOINT ["/app/user-service"]
