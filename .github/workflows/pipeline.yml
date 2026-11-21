@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   SERVICE_NAME: user-service
 
@@ -52,26 +56,35 @@ jobs:
     needs: image
     runs-on: ubuntu-latest
     environment: qa
-    concurrency:
-      group: ${{ github.repository }}-deploy-qa
-      cancel-in-progress: false
+    timeout-minutes: 20
     steps:
-      - name: Trigger Render deploy
+      - uses: actions/checkout@v5
+      - name: Deploy to Render and wait until live
         env:
-          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           IMAGE: ${{ needs.image.outputs.image }}
-        run: curl -fsS -X POST "${DEPLOY_HOOK}&imgURL=$(jq -rn --arg v "$IMAGE" '$v|@uri')"
+          DEPLOY_ENV: qa
+        run: bash .github/render-deploy.sh
+
+  e2e:
+    needs: deploy-qa
+    uses: swapr-org/integration-test-suite/.github/workflows/e2e.yml@main
+    secrets: inherit
 
   deploy-prod:
-    needs: [image, deploy-qa]
+    needs: [image, e2e]
     runs-on: ubuntu-latest
     environment: prod
-    concurrency:
-      group: ${{ github.repository }}-deploy-prod
-      cancel-in-progress: true
+    timeout-minutes: 20
     steps:
-      - name: Trigger Render deploy
+      - uses: actions/checkout@v5
+      - name: Deploy to Render and wait until live
         env:
-          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           IMAGE: ${{ needs.image.outputs.image }}
-        run: curl -fsS -X POST "${DEPLOY_HOOK}&imgURL=$(jq -rn --arg v "$IMAGE" '$v|@uri')"
+          DEPLOY_ENV: prod
+        run: bash .github/render-deploy.sh
