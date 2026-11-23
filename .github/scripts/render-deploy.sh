@@ -4,7 +4,6 @@ set -euo pipefail
 : "${RENDER_DEPLOY_HOOK_URL:?}" "${IMAGE:?}" "${RENDER_SERVICE_ID:?}" "${RENDER_API_KEY:?}" "${DEPLOY_ENV:?}"
 
 LIMIT_SECONDS=900
-INITIAL_SLEEP_SECONDS=300
 POLL_SECONDS=15
 
 started=$(date +%s)
@@ -31,8 +30,6 @@ if [[ "$code" == "202" || -z "$deploy_id" ]]; then
 fi
 
 echo "${DEPLOY_ENV}: triggered deploy ${deploy_id} of ${IMAGE}"
-echo "${DEPLOY_ENV}: waiting ${INITIAL_SLEEP_SECONDS}s before the first poll"
-sleep "$INITIAL_SLEEP_SECONDS"
 
 last_status="none"
 while true; do
