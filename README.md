@@ -6,7 +6,7 @@ Stack: Java 25, Spring Boot 4, Maven, Flyway, Checkstyle (Google rules, 120 colu
 
 ## Running locally
 
-Prerequisites: Docker and JDK 25.
+Prerequisites: JDK 25, and Docker for local runs.
 
 Once, copy `.env.example` to `.env` and fill in the QA Supabase project URL and any non-empty local internal token. `.env` is gitignored.
 
@@ -22,14 +22,14 @@ Run the linter and unit tests with:
 ./mvnw verify
 ```
 
-The unit tests start a PostGIS container through Testcontainers, so Docker must be running.
+The unit tests are plain JUnit with Mockito: each test exercises one class and mocks the layer below it, so they need no Docker, network or database. Behaviour that lives only in SQL is tested by the integration suite against QA.
 
 ## Environment variables
 
 | Variable | Purpose | Default |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local`, `qa` or `prod`. Render sets it per service. | `local` |
-| `PORT` | HTTP port. Render sets it. | `8080` |
+| `PORT` | HTTP port. Render sets it. Local runs listen on 8081. | `8081` |
 | `DATABASE_URL` | JDBC URL, for example `jdbc:postgresql://<host>/<db>?sslmode=require`. Neon needs `sslmode=require`. | none (local uses Docker Compose) |
 | `DATABASE_USERNAME` | Database user. | none |
 | `DATABASE_PASSWORD` | Database password. Secret. | none |
@@ -47,6 +47,20 @@ YAML holds defaults only and reads every per-environment value from an environme
 - `/v1/**` needs a Supabase JWT: issuer `<SUPABASE_URL>/auth/v1`, audience `authenticated`, signed by a key from the project's JWKS. The `sub` claim is the user's UUID and the principal name.
 - `/internal/**` needs the `X-Internal-Token` header. A missing or wrong token gets 401. A request with the right token that also carries an `Authorization` header gets 403, so user JWTs never reach internal endpoints.
 - Every other path is denied. Authentication and access errors are RFC 9457 Problem Details.
+
+User-service endpoints (all errors are Problem Details; validation errors add an `errors` array of `{field, message}`):
+
+- `GET /v1/users/me` returns the caller's own profile `{id, displayName, radiusKm, city}`, creating it on first use with radius 25 km and no name or city.
+- `PUT /v1/users/me` with `{displayName, cityId, radiusKm}` replaces the caller's profile. The name is trimmed to 1–50 characters, `cityId` must be an existing city, and the radius is a whole number from 1 to 100.
+- `GET /v1/users/{id}` returns a public profile `{id, displayName, city: {name, region, countryCode}}`, or 404 until the user has set a name and city.
+- `GET /v1/cities?query=<text>` returns up to 10 cities `{id, name, region, countryCode}` whose name starts with the query, ignoring case and accents, largest first. The query must be at least 2 characters.
+- `DELETE /v1/users/me` hard-deletes the caller's profile and returns 204, also when nothing is stored. The integration suite calls it as each test user to clean up.
+
+## City data
+
+Locations are cities from the GeoNames gazetteer, loaded by the Flyway migration `V1__create_cities.sql`. It was generated once from `cities15000.txt` (cities with at least 15,000 people) and `admin1CodesASCII.txt` (region names), downloaded on 2026-11-23. Each city's ID is a UUID v5 of its GeoNames URI (`https://sws.geonames.org/<geonameid>/`, URL namespace), so IDs are the same in every environment. `folded_name` is the name lowercased with combining marks removed after Unicode NFD, so `zur` finds Zürich. A profile stores only a city, so its location is that city's centre point.
+
+City data from GeoNames (geonames.org), licensed under CC BY 4.0.
 
 ## Pipeline
 
@@ -77,7 +91,7 @@ Follow these steps to start a new service, for example `listing-service`, from t
    - the native executable path in the `Dockerfile` (`target/<artifactId>`);
    - `SERVICE_NAME` in `.github/workflows/pipeline.yml`, which names the image `ghcr.io/<org>/<service>`;
    - the title and description in this README.
-3. **Create the Neon projects** `<service>-qa` and `<service>-prod`, in the shared region. A service without a database (such as `feed-service`) drops the JPA, Flyway, Postgres, Docker Compose and Testcontainers pieces instead.
+3. **Create the Neon projects** `<service>-qa` and `<service>-prod`, in the shared region. A service without a database (such as `feed-service`) drops the JPA, Flyway, Postgres and Docker Compose pieces instead.
 4. **Create the Render services** `<service>-qa` and `<service>-prod`:
    - deploy from an existing image, `ghcr.io/<org>/<service>:<sha>`;
    - set the health check path to `/actuator/health/liveness`;
@@ -88,4 +102,4 @@ Follow these steps to start a new service, for example `listing-service`, from t
 
    The org-level secret `RENDER_API_KEY` (a read-only Render key) already covers every service. The `prod` Environment must have required reviewers, which only works while the repo is public.
 6. **Make the GHCR package public** after the first `image` job pushes it (GitHub org, Packages, the package, Package settings, Change visibility). Render pulls without credentials, so the first QA deploy may fail until this is done; re-run the `deploy-qa` job afterwards.
-7. **Remove anything `user-service`-specific**: its migrations under `src/main/resources/db/migration`, its domain code and tests, and any README sections that describe its domain. Keep the security package, the health configuration and the context test.
+7. **Remove anything `user-service`-specific**: its migrations under `src/main/resources/db/migration`, its domain code and tests, and any README sections that describe its domain, including the city data section. Keep the security package and the health configuration.
