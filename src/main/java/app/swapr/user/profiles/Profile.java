@@ -52,4 +52,12 @@ class Profile {
   ProfileView view() {
     return new ProfileView(id, displayName, radiusKm, city);
   }
+
+  boolean isComplete() {
+    return displayName != null && city != null;
+  }
+
+  PublicProfileView publicView() {
+    return new PublicProfileView(id, displayName, city);
+  }
 }

@@ -4,6 +4,7 @@ import app.swapr.user.cities.City;
 import app.swapr.user.cities.CityService;
 import app.swapr.user.errors.FieldError;
 import app.swapr.user.errors.ValidationException;
+import app.swapr.user.text.TrimmedText;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Creates, updates and looks up user profiles. */
 @Service
+@Transactional
 public class ProfileService {
 
   private static final int DEFAULT_RADIUS_KM = 25;
@@ -30,12 +32,10 @@ public class ProfileService {
     this.cities = cities;
   }
 
-  @Transactional
   ProfileView getOrCreate(UUID userId) {
     return loadOrCreate(userId).view();
   }
 
-  @Transactional
   ProfileView update(UUID userId, UpdateProfileCommand command) {
     List<FieldError> errors = new ArrayList<>();
     String displayName = validName(command.displayName(), errors);
@@ -51,14 +51,10 @@ public class ProfileService {
 
   @Transactional(readOnly = true)
   Optional<PublicProfileView> publicProfile(UUID id) {
-    return store.find(id)
-        .map(Profile::view)
-        .filter(profile -> profile.displayName() != null && profile.city() != null)
-        .map(profile -> new PublicProfileView(profile.id(), profile.displayName(), profile.city()));
+    return store.find(id).filter(Profile::isComplete).map(Profile::publicView);
   }
 
   /** Hard-deletes the user's profile, doing nothing when none is stored. */
-  @Transactional
   public void deleteAllFor(UUID userId) {
     store.deleteById(userId);
   }
@@ -73,13 +69,13 @@ public class ProfileService {
       errors.add(new FieldError("displayName", "is required"));
       return null;
     }
-    String name = raw.strip();
-    int length = name.codePointCount(0, name.length());
-    if (length < 1 || length > MAX_NAME_LENGTH) {
-      errors.add(new FieldError("displayName", "must be 1 to 50 characters after trimming spaces"));
+    TrimmedText name = TrimmedText.of(raw);
+    if (name.length() < 1 || name.length() > MAX_NAME_LENGTH) {
+      errors.add(new FieldError("displayName",
+          "must be 1 to " + MAX_NAME_LENGTH + " characters after trimming spaces"));
       return null;
     }
-    return name;
+    return name.value();
   }
 
   private City validCity(String raw, List<FieldError> errors) {
@@ -102,7 +98,7 @@ public class ProfileService {
     }
     boolean whole = raw.stripTrailingZeros().scale() <= 0;
     if (!whole || raw.compareTo(MIN_RADIUS) < 0 || raw.compareTo(MAX_RADIUS) > 0) {
-      errors.add(new FieldError("radiusKm", "must be a whole number from 1 to 100"));
+      errors.add(new FieldError("radiusKm", "must be a whole number from " + MIN_RADIUS + " to " + MAX_RADIUS));
       return null;
     }
     return raw.intValueExact();

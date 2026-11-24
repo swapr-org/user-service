@@ -2,6 +2,7 @@ package app.swapr.user.cities;
 
 import app.swapr.user.errors.FieldError;
 import app.swapr.user.errors.ValidationException;
+import app.swapr.user.text.TrimmedText;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
@@ -27,11 +28,12 @@ public class CityService {
   }
 
   List<City> search(String query) {
-    String trimmed = query == null ? "" : query.strip();
-    if (trimmed.codePointCount(0, trimmed.length()) < MIN_QUERY_LENGTH) {
-      throw new ValidationException(List.of(new FieldError("query", "must be at least 2 characters")));
+    TrimmedText trimmed = TrimmedText.of(query == null ? "" : query);
+    if (trimmed.length() < MIN_QUERY_LENGTH) {
+      throw new ValidationException(
+          List.of(new FieldError("query", "must be at least " + MIN_QUERY_LENGTH + " characters")));
     }
-    String lowered = trimmed.toLowerCase(Locale.ROOT);
+    String lowered = trimmed.value().toLowerCase(Locale.ROOT);
     String folded = COMBINING_MARKS.matcher(Normalizer.normalize(lowered, Normalizer.Form.NFD)).replaceAll("");
     return directory.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
   }
