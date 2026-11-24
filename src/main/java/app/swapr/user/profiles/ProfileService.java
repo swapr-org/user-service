@@ -17,15 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ProfileService {
 
+  private static final int DEFAULT_RADIUS_KM = 25;
   private static final int MAX_NAME_LENGTH = 50;
   private static final BigDecimal MIN_RADIUS = BigDecimal.ONE;
   private static final BigDecimal MAX_RADIUS = BigDecimal.valueOf(100);
 
-  private final ProfileRepository repository;
+  private final ProfileStore store;
   private final CityService cities;
 
-  ProfileService(ProfileRepository repository, CityService cities) {
-    this.repository = repository;
+  ProfileService(ProfileStore store, CityService cities) {
+    this.store = store;
     this.cities = cities;
   }
 
@@ -43,14 +44,14 @@ public class ProfileService {
     if (!errors.isEmpty()) {
       throw new ValidationException(errors);
     }
-    Profile profile = loadOrCreate(userId);
-    profile.replace(displayName, city, radiusKm, Instant.now());
-    return profile.view();
+    Profile updated = loadOrCreate(userId).replaced(displayName, city, radiusKm, Instant.now());
+    store.save(updated);
+    return updated.view();
   }
 
   @Transactional(readOnly = true)
   Optional<PublicProfileView> publicProfile(UUID id) {
-    return repository.findById(id)
+    return store.find(id)
         .map(Profile::view)
         .filter(profile -> profile.displayName() != null && profile.city() != null)
         .map(profile -> new PublicProfileView(profile.id(), profile.displayName(), profile.city()));
@@ -59,12 +60,12 @@ public class ProfileService {
   /** Hard-deletes the user's profile, doing nothing when none is stored. */
   @Transactional
   public void deleteAllFor(UUID userId) {
-    repository.deleteProfile(userId);
+    store.deleteById(userId);
   }
 
   private Profile loadOrCreate(UUID userId) {
-    repository.insertDefaultIfAbsent(userId);
-    return repository.findById(userId).orElseThrow();
+    store.insertIfAbsent(userId, DEFAULT_RADIUS_KM);
+    return store.find(userId).orElseThrow();
   }
 
   private static String validName(String raw, List<FieldError> errors) {

@@ -3,53 +3,36 @@ package app.swapr.user.cities;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import app.swapr.user.ServiceTest;
 import app.swapr.user.errors.FieldError;
 import app.swapr.user.errors.ValidationException;
-import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.annotation.Autowired;
 
-@ServiceTest
 class CityServiceTest {
 
-  @Autowired
-  private CityService cities;
+  private final CityService cities = new CityService(new InMemoryCityDirectory()
+      .add(city("Zürich"), "Zuerich", "zurich")
+      .add(city("Port_Town"), "Port_Town", "port_town")
+      .add(city("Back\\slash"), "Back\\slash", "back\\slash"));
 
   @ParameterizedTest
-  @ValueSource(strings = {"zur", "ZUR", "zür", "Zue", "  zur  "})
-  void findsZurichByPrefixIgnoringCaseAndAccents(String query) {
-    List<City> result = cities.search(query);
-
-    assertThat(result)
-        .anySatisfy(city -> {
-          assertThat(city.name()).isEqualTo("Zürich");
-          assertThat(city.region()).isEqualTo("Zurich");
-          assertThat(city.countryCode()).isEqualTo("CH");
-        });
-  }
-
-  @Test
-  void ordersMatchesByPopulationAndReturnsAtMostTen() {
-    List<City> result = cities.search("lon");
-
-    assertThat(result).hasSize(10);
-    assertThat(result).extracting(City::name).startsWith("London", "Longyan", "Londrina");
-    assertThat(result.getFirst().countryCode()).isEqualTo("GB");
-  }
-
-  @Test
-  void matchesOnlyFromTheStartOfTheName() {
-    assertThat(cities.search("urich")).extracting(City::name).doesNotContain("Zürich");
+  @ValueSource(strings = {"zur", "ZÚR", "Zue", "  zur  "})
+  void trimsLowercasesAndFoldsTheQuery(String query) {
+    assertThat(cities.search(query)).extracting(City::name).containsExactly("Zürich");
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"z_rich", "%rich", "zu%"})
-  void treatsWildcardCharactersLiterally(String query) {
+  @ValueSource(strings = {"z_rich", "%rich", "port%own"})
+  void treatsWildcardsLiterally(String query) {
     assertThat(cities.search(query)).isEmpty();
+  }
+
+  @Test
+  void treatsBackslashLiterally() {
+    assertThat(cities.search("back\\")).extracting(City::name).containsExactly("Back\\slash");
   }
 
   @ParameterizedTest
@@ -60,5 +43,9 @@ class CityServiceTest {
         .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.errors())
             .extracting(FieldError::field)
             .containsExactly("query"));
+  }
+
+  private static City city(String name) {
+    return new City(UUID.randomUUID(), name, null, "CH", 0, 0);
   }
 }

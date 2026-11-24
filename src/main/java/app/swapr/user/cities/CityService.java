@@ -19,10 +19,11 @@ public class CityService {
   private static final int MIN_QUERY_LENGTH = 2;
   private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}");
 
-  private final CityRepository repository;
+  private final CityDirectory directory;
 
-  CityService(CityRepository repository) {
-    this.repository = repository;
+  /** Creates the service over the given city directory. */
+  public CityService(CityDirectory directory) {
+    this.directory = directory;
   }
 
   List<City> search(String query) {
@@ -32,12 +33,12 @@ public class CityService {
     }
     String lowered = trimmed.toLowerCase(Locale.ROOT);
     String folded = COMBINING_MARKS.matcher(Normalizer.normalize(lowered, Normalizer.Form.NFD)).replaceAll("");
-    return repository.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
+    return directory.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
   }
 
   /** Returns the city with the given ID, if it exists. */
   public Optional<City> find(UUID id) {
-    return repository.findById(id);
+    return directory.find(id);
   }
 
   private static String escapeLike(String value) {

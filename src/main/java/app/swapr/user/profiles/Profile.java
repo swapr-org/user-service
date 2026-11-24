@@ -36,11 +36,17 @@ class Profile {
   protected Profile() {
   }
 
-  void replace(String displayName, City city, int radiusKm, Instant now) {
+  Profile(UUID id, String displayName, City city, int radiusKm, Instant createdAt, Instant updatedAt) {
+    this.id = id;
     this.displayName = displayName;
     this.city = city;
     this.radiusKm = radiusKm;
-    this.updatedAt = now;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+  }
+
+  Profile replaced(String displayName, City city, int radiusKm, Instant now) {
+    return new Profile(id, displayName, city, radiusKm, createdAt, now);
   }
 
   ProfileView view() {

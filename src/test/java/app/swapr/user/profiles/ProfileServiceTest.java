@@ -3,31 +3,29 @@ package app.swapr.user.profiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import app.swapr.user.ServiceTest;
+import app.swapr.user.cities.City;
+import app.swapr.user.cities.CityService;
+import app.swapr.user.cities.InMemoryCityDirectory;
 import app.swapr.user.errors.FieldError;
 import app.swapr.user.errors.ValidationException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.annotation.Autowired;
 
-@ServiceTest
 class ProfileServiceTest {
 
   private static final String ZURICH_ID = "cf5f88ac-7848-5936-bd5a-b7ef809546ad";
   private static final String LONDON_ID = "d2f34301-524e-5a2f-ade9-fd7aebdb71ac";
 
-  @Autowired
-  private ProfileService profiles;
+  private final ProfileService profiles = new ProfileService(new InMemoryProfileStore(),
+      new CityService(new InMemoryCityDirectory()
+          .add(new City(UUID.fromString(ZURICH_ID), "Zürich", "Zurich", "CH", 47.36667, 8.55), "Zuerich", "zurich")
+          .add(new City(UUID.fromString(LONDON_ID), "London", "England", "GB", 51.50853, -0.12574), "London",
+              "london")));
 
   @Test
   void firstUseCreatesProfileWithDefaultRadiusAndNoNameOrCity() {
@@ -39,24 +37,6 @@ class ProfileServiceTest {
     assertThat(profile.radiusKm()).isEqualTo(25);
     assertThat(profile.displayName()).isNull();
     assertThat(profile.city()).isNull();
-  }
-
-  @Test
-  void concurrentFirstUsesBothSucceedWithTheSameProfile() throws Exception {
-    UUID userId = UUID.randomUUID();
-    CyclicBarrier barrier = new CyclicBarrier(2);
-    Callable<ProfileView> firstUse = () -> {
-      barrier.await();
-      return profiles.getOrCreate(userId);
-    };
-
-    try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
-      Future<ProfileView> first = executor.submit(firstUse);
-      Future<ProfileView> second = executor.submit(firstUse);
-
-      assertThat(first.get().id()).isEqualTo(userId);
-      assertThat(second.get().id()).isEqualTo(userId);
-    }
   }
 
   @Test

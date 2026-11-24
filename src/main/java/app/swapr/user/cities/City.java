@@ -28,6 +28,16 @@ public class City {
   City() {
   }
 
+  /** Creates a city with the given details and centre point. */
+  public City(UUID id, String name, String region, String countryCode, double latitude, double longitude) {
+    this.id = id;
+    this.name = name;
+    this.region = region;
+    this.countryCode = countryCode;
+    this.latitude = latitude;
+    this.longitude = longitude;
+  }
+
   /** Returns the city's ID. */
   public UUID id() {
     return id;

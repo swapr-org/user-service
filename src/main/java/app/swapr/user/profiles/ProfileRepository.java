@@ -9,8 +9,9 @@ import org.springframework.data.repository.query.Param;
 interface ProfileRepository extends JpaRepository<Profile, UUID> {
 
   @Modifying
-  @Query(value = "INSERT INTO profiles (id) VALUES (:id) ON CONFLICT (id) DO NOTHING", nativeQuery = true)
-  void insertDefaultIfAbsent(@Param("id") UUID id);
+  @Query(nativeQuery = true,
+      value = "INSERT INTO profiles (id, radius_km) VALUES (:id, :radiusKm) ON CONFLICT (id) DO NOTHING")
+  void insertIfAbsent(@Param("id") UUID id, @Param("radiusKm") int radiusKm);
 
   @Modifying
   @Query("DELETE FROM Profile p WHERE p.id = :id")
