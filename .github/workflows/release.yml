@@ -1,0 +1,48 @@
+name: release
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-qa:
+    runs-on: ubuntu-latest
+    environment: qa
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy to Render and wait until live
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          IMAGE: ${{ inputs.image }}
+          DEPLOY_ENV: qa
+        run: bash .github/scripts/render-deploy.sh
+
+  e2e:
+    needs: deploy-qa
+    uses: swapr-org/integration-test-suite/.github/workflows/e2e.yml@main
+    secrets: inherit
+
+  deploy-prod:
+    needs: e2e
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy to Render and wait until live
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          IMAGE: ${{ inputs.image }}
+          DEPLOY_ENV: prod
+        run: bash .github/scripts/render-deploy.sh

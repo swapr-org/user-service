@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
   SERVICE_NAME: user-service
 
@@ -52,39 +48,12 @@ jobs:
           push: true
           tags: ${{ steps.name.outputs.image }}
 
-  deploy-qa:
+  release:
     needs: image
-    runs-on: ubuntu-latest
-    environment: qa
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - name: Deploy to Render and wait until live
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
-          IMAGE: ${{ needs.image.outputs.image }}
-          DEPLOY_ENV: qa
-        run: bash .github/scripts/render-deploy.sh
-
-  e2e:
-    needs: deploy-qa
-    uses: swapr-org/integration-test-suite/.github/workflows/e2e.yml@main
+    concurrency:
+      group: ${{ github.workflow }}-release
+      cancel-in-progress: false
+    uses: ./.github/workflows/release.yml
+    with:
+      image: ${{ needs.image.outputs.image }}
     secrets: inherit
-
-  deploy-prod:
-    needs: [image, e2e]
-    runs-on: ubuntu-latest
-    environment: prod
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - name: Deploy to Render and wait until live
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
-          IMAGE: ${{ needs.image.outputs.image }}
-          DEPLOY_ENV: prod
-        run: bash .github/scripts/render-deploy.sh
