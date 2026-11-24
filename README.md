@@ -22,7 +22,7 @@ Run the linter and unit tests with:
 ./mvnw verify
 ```
 
-The unit tests are plain JUnit with in-memory fakes of each service's data access, so they need no Docker, network or database. Behaviour that lives only in SQL is tested by the integration suite against QA.
+The unit tests are plain JUnit with Mockito: each test exercises one class and mocks the layer below it, so they need no Docker, network or database. Behaviour that lives only in SQL is tested by the integration suite against QA.
 
 ## Environment variables
 
@@ -54,7 +54,7 @@ User-service endpoints (all errors are Problem Details; validation errors add an
 - `PUT /v1/users/me` with `{displayName, cityId, radiusKm}` replaces the caller's profile. The name is trimmed to 1–50 characters, `cityId` must be an existing city, and the radius is a whole number from 1 to 100.
 - `GET /v1/users/{id}` returns a public profile `{id, displayName, city: {name, region, countryCode}}`, or 404 until the user has set a name and city.
 - `GET /v1/cities?query=<text>` returns up to 10 cities `{id, name, region, countryCode}` whose name starts with the query, ignoring case and accents, largest first. The query must be at least 2 characters.
-- `DELETE /internal/v1/test-data/users/{id}` exists only in the `qa` profile. It deletes everything user-service stores for the user and always returns 204. The integration suite calls it to clean up.
+- `DELETE /v1/users/me` hard-deletes the caller's profile and returns 204, also when nothing is stored. The integration suite calls it as each test user to clean up.
 
 ## City data
 
@@ -102,4 +102,4 @@ Follow these steps to start a new service, for example `listing-service`, from t
 
    The org-level secret `RENDER_API_KEY` (a read-only Render key) already covers every service. The `prod` Environment must have required reviewers, which only works while the repo is public.
 6. **Make the GHCR package public** after the first `image` job pushes it (GitHub org, Packages, the package, Package settings, Change visibility). Render pulls without credentials, so the first QA deploy may fail until this is done; re-run the `deploy-qa` job afterwards.
-7. **Remove anything `user-service`-specific**: its migrations under `src/main/resources/db/migration`, its domain code and tests, the user-service-specific deletes in the test-data controller, and any README sections that describe its domain, including the city data section. Keep the security package and the health configuration.
+7. **Remove anything `user-service`-specific**: its migrations under `src/main/resources/db/migration`, its domain code and tests, and any README sections that describe its domain, including the city data section. Keep the security package and the health configuration.
