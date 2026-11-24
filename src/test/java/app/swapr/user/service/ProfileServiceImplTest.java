@@ -36,38 +36,38 @@ class ProfileServiceImplTest {
   private static final City LONDON = new City(UUID.randomUUID(), "London", "England", "GB", 51.50853, -0.12574);
 
   @Mock
-  private ProfileRepository repository;
+  private ProfileRepository profileRepository;
 
   @Mock
-  private CityService cities;
+  private CityService cityService;
 
-  private ProfileService profiles;
+  private ProfileService profileService;
 
   @BeforeEach
   void setUp() {
-    profiles = new ProfileServiceImpl(repository, cities);
+    profileService = new ProfileServiceImpl(profileRepository, cityService);
   }
 
   @Test
   void getOrCreateInsertsDefaultRadiusBeforeReadingTheProfile() {
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(blank()));
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
 
-    ProfileView profile = profiles.getOrCreate(USER_ID);
+    ProfileView profile = profileService.getOrCreate(USER_ID);
 
-    InOrder order = inOrder(repository);
-    order.verify(repository).insertIfAbsent(USER_ID, 25);
-    order.verify(repository).findById(USER_ID);
+    InOrder order = inOrder(profileRepository);
+    order.verify(profileRepository).insertIfAbsent(USER_ID, 25);
+    order.verify(profileRepository).findById(USER_ID);
     assertThat(profile).isEqualTo(new ProfileView(USER_ID, null, 25, null));
   }
 
   @Test
   void updateCreatesTheProfileIfNeededAndSavesTrimmedNameCityAndRadius() {
-    when(cities.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(blank()));
+    when(cityService.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
 
-    ProfileView updated = profiles.update(USER_ID, request("  Ben  ", ZURICH.id().toString(), "40"));
+    ProfileView updated = profileService.update(USER_ID, request("  Ben  ", ZURICH.id().toString(), "40"));
 
-    verify(repository).insertIfAbsent(USER_ID, 25);
+    verify(profileRepository).insertIfAbsent(USER_ID, 25);
     assertThat(saved()).extracting(Profile::displayName, Profile::city, Profile::radiusKm)
         .containsExactly("Ben", ZURICH, 40);
     assertThat(updated).isEqualTo(new ProfileView(USER_ID, "Ben", 40, ZURICH));
@@ -75,10 +75,10 @@ class ProfileServiceImplTest {
 
   @Test
   void updateReplacesEveryFieldOfAnExistingProfile() {
-    when(cities.find(LONDON.id())).thenReturn(Optional.of(LONDON));
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(complete()));
+    when(cityService.find(LONDON.id())).thenReturn(Optional.of(LONDON));
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(complete()));
 
-    profiles.update(USER_ID, request("Benjamin", LONDON.id().toString(), "5"));
+    profileService.update(USER_ID, request("Benjamin", LONDON.id().toString(), "5"));
 
     assertThat(saved()).extracting(Profile::id, Profile::displayName, Profile::city, Profile::radiusKm)
         .containsExactly(USER_ID, "Benjamin", LONDON, 5);
@@ -86,20 +86,21 @@ class ProfileServiceImplTest {
 
   @Test
   void acceptsBoundaryNameLengthAndRadii() {
-    when(cities.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(blank()));
+    when(cityService.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
     String fiftyChars = "a".repeat(50);
+    String zurichId = ZURICH.id().toString();
 
-    assertThat(profiles.update(USER_ID, request(" " + fiftyChars + " ", ZURICH.id().toString(), "1")).displayName())
+    assertThat(profileService.update(USER_ID, request(" " + fiftyChars + " ", zurichId, "1")).displayName())
         .isEqualTo(fiftyChars);
-    assertThat(profiles.update(USER_ID, request("B", ZURICH.id().toString(), "100")).radiusKm()).isEqualTo(100);
+    assertThat(profileService.update(USER_ID, request("B", zurichId, "100")).radiusKm()).isEqualTo(100);
   }
 
   @ParameterizedTest
   @NullSource
   @ValueSource(strings = {"", "   ", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
   void rejectsMissingBlankOrTooLongDisplayName(String displayName) {
-    when(cities.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
+    when(cityService.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
 
     assertOnlyFieldRejected(request(displayName, ZURICH.id().toString(), "25"), "displayName");
   }
@@ -108,7 +109,7 @@ class ProfileServiceImplTest {
   @NullSource
   @ValueSource(strings = {"0", "101", "2.5", "-1"})
   void rejectsRadiusThatIsNotWholeOrOutsideOneToHundred(String radiusKm) {
-    when(cities.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
+    when(cityService.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
 
     assertOnlyFieldRejected(request("Ben", ZURICH.id().toString(), radiusKm), "radiusKm");
   }
@@ -122,18 +123,18 @@ class ProfileServiceImplTest {
 
   @Test
   void reportsEveryInvalidFieldTogetherWithoutTouchingStoredProfiles() {
-    assertThatThrownBy(() -> profiles.update(USER_ID, request(" ", null, "0")))
+    assertThatThrownBy(() -> profileService.update(USER_ID, request(" ", null, "0")))
         .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.errors())
             .extracting(FieldError::field)
             .containsExactlyInAnyOrder("displayName", "cityId", "radiusKm"));
-    verifyNoInteractions(repository);
+    verifyNoInteractions(profileRepository);
   }
 
   @Test
   void publicProfileShowsNameAndCityOfCompleteProfile() {
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(complete()));
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(complete()));
 
-    assertThat(profiles.publicProfile(USER_ID)).hasValueSatisfying(profile -> {
+    assertThat(profileService.publicProfile(USER_ID)).hasValueSatisfying(profile -> {
       assertThat(profile.id()).isEqualTo(USER_ID);
       assertThat(profile.displayName()).isEqualTo("Ben");
       assertThat(profile.city()).isEqualTo(ZURICH);
@@ -143,31 +144,31 @@ class ProfileServiceImplTest {
   @Test
   void publicProfileIsEmptyForUnknownOrIncompleteProfile() {
     UUID unknown = UUID.randomUUID();
-    when(repository.findById(USER_ID)).thenReturn(Optional.of(blank()));
-    when(repository.findById(unknown)).thenReturn(Optional.empty());
+    when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
+    when(profileRepository.findById(unknown)).thenReturn(Optional.empty());
 
-    assertThat(profiles.publicProfile(USER_ID)).isEmpty();
-    assertThat(profiles.publicProfile(unknown)).isEmpty();
+    assertThat(profileService.publicProfile(USER_ID)).isEmpty();
+    assertThat(profileService.publicProfile(unknown)).isEmpty();
   }
 
   @Test
   void deleteRemovesTheUsersProfile() {
-    profiles.delete(USER_ID);
+    profileService.delete(USER_ID);
 
-    verify(repository).deleteProfile(USER_ID);
+    verify(profileRepository).deleteProfile(USER_ID);
   }
 
   private void assertOnlyFieldRejected(UpdateProfileRequest request, String field) {
-    assertThatThrownBy(() -> profiles.update(USER_ID, request))
+    assertThatThrownBy(() -> profileService.update(USER_ID, request))
         .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.errors())
             .extracting(FieldError::field)
             .containsExactly(field));
-    verifyNoInteractions(repository);
+    verifyNoInteractions(profileRepository);
   }
 
   private Profile saved() {
     ArgumentCaptor<Profile> captor = ArgumentCaptor.forClass(Profile.class);
-    verify(repository).save(captor.capture());
+    verify(profileRepository).save(captor.capture());
     return captor.getValue();
   }
 

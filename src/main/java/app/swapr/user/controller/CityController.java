@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/cities")
 class CityController {
 
-  private final CityService cities;
+  private final CityService cityService;
 
-  CityController(CityService cities) {
-    this.cities = cities;
+  CityController(CityService cityService) {
+    this.cityService = cityService;
   }
 
   @GetMapping
   List<CityResponse> search(@RequestParam(required = false) String query) throws ValidationException {
-    return cities.search(query).stream().map(CityResponse::from).toList();
+    return cityService.search(query).stream().map(CityResponse::from).toList();
   }
 }

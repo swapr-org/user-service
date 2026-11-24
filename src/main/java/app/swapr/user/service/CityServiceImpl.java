@@ -21,10 +21,10 @@ class CityServiceImpl implements CityService {
   private static final int MIN_QUERY_LENGTH = 2;
   private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}");
 
-  private final CityRepository repository;
+  private final CityRepository cityRepository;
 
-  CityServiceImpl(CityRepository repository) {
-    this.repository = repository;
+  CityServiceImpl(CityRepository cityRepository) {
+    this.cityRepository = cityRepository;
   }
 
   @Override
@@ -36,12 +36,12 @@ class CityServiceImpl implements CityService {
     }
     String lowered = trimmed.value().toLowerCase(Locale.ROOT);
     String folded = COMBINING_MARKS.matcher(Normalizer.normalize(lowered, Normalizer.Form.NFD)).replaceAll("");
-    return repository.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
+    return cityRepository.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
   }
 
   @Override
   public Optional<City> find(UUID id) {
-    return repository.findById(id);
+    return cityRepository.findById(id);
   }
 
   private static String escapeLike(String value) {

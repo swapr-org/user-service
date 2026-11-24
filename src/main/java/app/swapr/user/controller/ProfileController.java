@@ -22,32 +22,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/users")
 class ProfileController {
 
-  private final ProfileService profiles;
+  private final ProfileService profileService;
 
-  ProfileController(ProfileService profiles) {
-    this.profiles = profiles;
+  ProfileController(ProfileService profileService) {
+    this.profileService = profileService;
   }
 
   @GetMapping("/me")
   ProfileResponse me(Principal principal) {
-    return ProfileResponse.from(profiles.getOrCreate(userId(principal)));
+    return ProfileResponse.from(profileService.getOrCreate(userId(principal)));
   }
 
   @PutMapping("/me")
   ProfileResponse replaceMe(Principal principal, @RequestBody UpdateProfileRequest request)
       throws ValidationException {
-    return ProfileResponse.from(profiles.update(userId(principal), request));
+    return ProfileResponse.from(profileService.update(userId(principal), request));
   }
 
   @DeleteMapping("/me")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   void deleteMe(Principal principal) {
-    profiles.delete(userId(principal));
+    profileService.delete(userId(principal));
   }
 
   @GetMapping("/{id}")
   PublicProfileResponse publicProfile(@PathVariable UUID id) throws NotFoundException {
-    return profiles.publicProfile(id)
+    return profileService.publicProfile(id)
         .map(PublicProfileResponse::from)
         .orElseThrow(() -> new NotFoundException("Profile not found."));
   }

@@ -29,13 +29,13 @@ class CityServiceImplTest {
   private static final City ZURICH = new City(UUID.randomUUID(), "Zürich", "Zurich", "CH", 47.36667, 8.55);
 
   @Mock
-  private CityRepository repository;
+  private CityRepository cityRepository;
 
-  private CityService cities;
+  private CityService cityService;
 
   @BeforeEach
   void setUp() {
-    cities = new CityServiceImpl(repository);
+    cityService = new CityServiceImpl(cityRepository);
   }
 
   @ParameterizedTest
@@ -45,9 +45,9 @@ class CityServiceImplTest {
       "ZÚR       | zúr%  | zur%",
   })
   void searchesByTrimmedLowercasedPrefixAndItsAccentFoldedForm(String query, String prefix, String folded) {
-    when(repository.searchByPrefix(prefix, folded)).thenReturn(List.of(ZURICH));
+    when(cityRepository.searchByPrefix(prefix, folded)).thenReturn(List.of(ZURICH));
 
-    assertThat(cities.search(query)).containsExactly(ZURICH);
+    assertThat(cityService.search(query)).containsExactly(ZURICH);
   }
 
   @ParameterizedTest
@@ -57,26 +57,26 @@ class CityServiceImplTest {
       "back\\   | back\\\\%",
   })
   void escapesLikeWildcardsAndBackslash(String query, String pattern) {
-    cities.search(query);
+    cityService.search(query);
 
-    verify(repository).searchByPrefix(pattern, pattern);
+    verify(cityRepository).searchByPrefix(pattern, pattern);
   }
 
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {"z", "  z  "})
   void rejectsQueriesShorterThanTwoCharactersWithoutSearching(String query) {
-    assertThatThrownBy(() -> cities.search(query))
+    assertThatThrownBy(() -> cityService.search(query))
         .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.errors())
             .extracting(FieldError::field)
             .containsExactly("query"));
-    verifyNoInteractions(repository);
+    verifyNoInteractions(cityRepository);
   }
 
   @Test
   void findReturnsTheStoredCity() {
-    when(repository.findById(ZURICH.id())).thenReturn(Optional.of(ZURICH));
+    when(cityRepository.findById(ZURICH.id())).thenReturn(Optional.of(ZURICH));
 
-    assertThat(cities.find(ZURICH.id())).contains(ZURICH);
+    assertThat(cityService.find(ZURICH.id())).contains(ZURICH);
   }
 }

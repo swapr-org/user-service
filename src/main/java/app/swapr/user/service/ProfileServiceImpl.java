@@ -27,12 +27,12 @@ class ProfileServiceImpl implements ProfileService {
   private static final BigDecimal MIN_RADIUS = BigDecimal.ONE;
   private static final BigDecimal MAX_RADIUS = BigDecimal.valueOf(100);
 
-  private final ProfileRepository repository;
-  private final CityService cities;
+  private final ProfileRepository profileRepository;
+  private final CityService cityService;
 
-  ProfileServiceImpl(ProfileRepository repository, CityService cities) {
-    this.repository = repository;
-    this.cities = cities;
+  ProfileServiceImpl(ProfileRepository profileRepository, CityService cityService) {
+    this.profileRepository = profileRepository;
+    this.cityService = cityService;
   }
 
   @Override
@@ -50,24 +50,24 @@ class ProfileServiceImpl implements ProfileService {
       throw new ValidationException(errors);
     }
     Profile updated = loadOrCreate(userId).replaced(displayName, city, radiusKm, Instant.now());
-    repository.save(updated);
+    profileRepository.save(updated);
     return ProfileView.from(updated);
   }
 
   @Override
   @Transactional(readOnly = true)
   public Optional<PublicProfileView> publicProfile(UUID id) {
-    return repository.findById(id).filter(Profile::isComplete).map(PublicProfileView::from);
+    return profileRepository.findById(id).filter(Profile::isComplete).map(PublicProfileView::from);
   }
 
   @Override
   public void delete(UUID userId) {
-    repository.deleteProfile(userId);
+    profileRepository.deleteProfile(userId);
   }
 
   private Profile loadOrCreate(UUID userId) {
-    repository.insertIfAbsent(userId, DEFAULT_RADIUS_KM);
-    return repository.findById(userId).orElseThrow();
+    profileRepository.insertIfAbsent(userId, DEFAULT_RADIUS_KM);
+    return profileRepository.findById(userId).orElseThrow();
   }
 
   private static String validName(String raw, List<FieldError> errors) {
@@ -89,7 +89,7 @@ class ProfileServiceImpl implements ProfileService {
       errors.add(new FieldError("cityId", "is required"));
       return null;
     }
-    Optional<City> city = parseUuid(raw).flatMap(cities::find);
+    Optional<City> city = parseUuid(raw).flatMap(cityService::find);
     if (city.isEmpty()) {
       errors.add(new FieldError("cityId", "must be the ID of an existing city"));
       return null;
