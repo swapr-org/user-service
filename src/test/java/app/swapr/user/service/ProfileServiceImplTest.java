@@ -7,9 +7,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import app.swapr.user.dto.ProfileView;
+import app.swapr.user.dto.CityResponse;
+import app.swapr.user.dto.ProfileResponse;
+import app.swapr.user.dto.PublicCityResponse;
+import app.swapr.user.dto.PublicProfileResponse;
 import app.swapr.user.dto.UpdateProfileRequest;
 import app.swapr.user.exception.FieldError;
+import app.swapr.user.exception.NotFoundException;
 import app.swapr.user.exception.ValidationException;
 import app.swapr.user.model.City;
 import app.swapr.user.model.Profile;
@@ -52,12 +56,12 @@ class ProfileServiceImplTest {
   void getOrCreateInsertsDefaultRadiusBeforeReadingTheProfile() {
     when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
 
-    ProfileView profile = profileService.getOrCreate(USER_ID);
+    ProfileResponse profile = profileService.getOrCreate(USER_ID);
 
     InOrder order = inOrder(profileRepository);
     order.verify(profileRepository).insertIfAbsent(USER_ID, 25);
     order.verify(profileRepository).findById(USER_ID);
-    assertThat(profile).isEqualTo(new ProfileView(USER_ID, null, 25, null));
+    assertThat(profile).isEqualTo(new ProfileResponse(USER_ID, null, 25, null));
   }
 
   @Test
@@ -65,12 +69,13 @@ class ProfileServiceImplTest {
     when(cityService.find(ZURICH.id())).thenReturn(Optional.of(ZURICH));
     when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
 
-    ProfileView updated = profileService.update(USER_ID, request("  Ben  ", ZURICH.id().toString(), "40"));
+    ProfileResponse updated = profileService.update(USER_ID, request("  Ben  ", ZURICH.id().toString(), "40"));
 
     verify(profileRepository).insertIfAbsent(USER_ID, 25);
     assertThat(saved()).extracting(Profile::displayName, Profile::city, Profile::radiusKm)
         .containsExactly("Ben", ZURICH, 40);
-    assertThat(updated).isEqualTo(new ProfileView(USER_ID, "Ben", 40, ZURICH));
+    assertThat(updated).isEqualTo(
+        new ProfileResponse(USER_ID, "Ben", 40, new CityResponse(ZURICH.id(), "Zürich", "Zurich", "CH")));
   }
 
   @Test
@@ -134,21 +139,18 @@ class ProfileServiceImplTest {
   void publicProfileShowsNameAndCityOfCompleteProfile() {
     when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(complete()));
 
-    assertThat(profileService.publicProfile(USER_ID)).hasValueSatisfying(profile -> {
-      assertThat(profile.id()).isEqualTo(USER_ID);
-      assertThat(profile.displayName()).isEqualTo("Ben");
-      assertThat(profile.city()).isEqualTo(ZURICH);
-    });
+    assertThat(profileService.publicProfile(USER_ID))
+        .isEqualTo(new PublicProfileResponse(USER_ID, "Ben", new PublicCityResponse("Zürich", "Zurich", "CH")));
   }
 
   @Test
-  void publicProfileIsEmptyForUnknownOrIncompleteProfile() {
+  void publicProfileIsNotFoundForUnknownOrIncompleteProfile() {
     UUID unknown = UUID.randomUUID();
     when(profileRepository.findById(USER_ID)).thenReturn(Optional.of(blank()));
     when(profileRepository.findById(unknown)).thenReturn(Optional.empty());
 
-    assertThat(profileService.publicProfile(USER_ID)).isEmpty();
-    assertThat(profileService.publicProfile(unknown)).isEmpty();
+    assertThatThrownBy(() -> profileService.publicProfile(USER_ID)).isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> profileService.publicProfile(unknown)).isInstanceOf(NotFoundException.class);
   }
 
   @Test

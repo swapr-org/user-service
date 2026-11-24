@@ -21,6 +21,6 @@ class CityController {
 
   @GetMapping
   List<CityResponse> search(@RequestParam(required = false) String query) throws ValidationException {
-    return cityService.search(query).stream().map(CityResponse::from).toList();
+    return cityService.search(query);
   }
 }

@@ -1,5 +1,6 @@
 package app.swapr.user.service;
 
+import app.swapr.user.dto.CityResponse;
 import app.swapr.user.exception.FieldError;
 import app.swapr.user.exception.ValidationException;
 import app.swapr.user.model.City;
@@ -28,7 +29,7 @@ class CityServiceImpl implements CityService {
   }
 
   @Override
-  public List<City> search(String query) throws ValidationException {
+  public List<CityResponse> search(String query) throws ValidationException {
     TrimmedText trimmed = TrimmedText.of(query == null ? "" : query);
     if (trimmed.length() < MIN_QUERY_LENGTH) {
       throw new ValidationException(
@@ -36,7 +37,9 @@ class CityServiceImpl implements CityService {
     }
     String lowered = trimmed.value().toLowerCase(Locale.ROOT);
     String folded = COMBINING_MARKS.matcher(Normalizer.normalize(lowered, Normalizer.Form.NFD)).replaceAll("");
-    return cityRepository.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%");
+    return cityRepository.searchByPrefix(escapeLike(lowered) + "%", escapeLike(folded) + "%").stream()
+        .map(CityResponse::from)
+        .toList();
   }
 
   @Override

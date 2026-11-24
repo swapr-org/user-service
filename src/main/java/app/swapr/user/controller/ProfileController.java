@@ -30,13 +30,13 @@ class ProfileController {
 
   @GetMapping("/me")
   ProfileResponse me(Principal principal) {
-    return ProfileResponse.from(profileService.getOrCreate(userId(principal)));
+    return profileService.getOrCreate(userId(principal));
   }
 
   @PutMapping("/me")
   ProfileResponse replaceMe(Principal principal, @RequestBody UpdateProfileRequest request)
       throws ValidationException {
-    return ProfileResponse.from(profileService.update(userId(principal), request));
+    return profileService.update(userId(principal), request);
   }
 
   @DeleteMapping("/me")
@@ -47,9 +47,7 @@ class ProfileController {
 
   @GetMapping("/{id}")
   PublicProfileResponse publicProfile(@PathVariable UUID id) throws NotFoundException {
-    return profileService.publicProfile(id)
-        .map(PublicProfileResponse::from)
-        .orElseThrow(() -> new NotFoundException("Profile not found."));
+    return profileService.publicProfile(id);
   }
 
   private static UUID userId(Principal principal) {

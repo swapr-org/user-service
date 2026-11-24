@@ -1,9 +1,10 @@
 package app.swapr.user.service;
 
-import app.swapr.user.dto.ProfileView;
-import app.swapr.user.dto.PublicProfileView;
+import app.swapr.user.dto.ProfileResponse;
+import app.swapr.user.dto.PublicProfileResponse;
 import app.swapr.user.dto.UpdateProfileRequest;
 import app.swapr.user.exception.FieldError;
+import app.swapr.user.exception.NotFoundException;
 import app.swapr.user.exception.ValidationException;
 import app.swapr.user.model.City;
 import app.swapr.user.model.Profile;
@@ -36,12 +37,12 @@ class ProfileServiceImpl implements ProfileService {
   }
 
   @Override
-  public ProfileView getOrCreate(UUID userId) {
-    return ProfileView.from(loadOrCreate(userId));
+  public ProfileResponse getOrCreate(UUID userId) {
+    return ProfileResponse.from(loadOrCreate(userId));
   }
 
   @Override
-  public ProfileView update(UUID userId, UpdateProfileRequest request) throws ValidationException {
+  public ProfileResponse update(UUID userId, UpdateProfileRequest request) throws ValidationException {
     List<FieldError> errors = new ArrayList<>();
     String displayName = validName(request.displayName(), errors);
     City city = validCity(request.cityId(), errors);
@@ -51,13 +52,16 @@ class ProfileServiceImpl implements ProfileService {
     }
     Profile updated = loadOrCreate(userId).replaced(displayName, city, radiusKm, Instant.now());
     profileRepository.save(updated);
-    return ProfileView.from(updated);
+    return ProfileResponse.from(updated);
   }
 
   @Override
   @Transactional(readOnly = true)
-  public Optional<PublicProfileView> publicProfile(UUID id) {
-    return profileRepository.findById(id).filter(Profile::isComplete).map(PublicProfileView::from);
+  public PublicProfileResponse publicProfile(UUID id) throws NotFoundException {
+    return profileRepository.findById(id)
+        .filter(Profile::isComplete)
+        .map(PublicProfileResponse::from)
+        .orElseThrow(() -> new NotFoundException("Profile not found."));
   }
 
   @Override

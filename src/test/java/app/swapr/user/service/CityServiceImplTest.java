@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import app.swapr.user.dto.CityResponse;
 import app.swapr.user.exception.FieldError;
 import app.swapr.user.exception.ValidationException;
 import app.swapr.user.model.City;
@@ -47,7 +48,7 @@ class CityServiceImplTest {
   void searchesByTrimmedLowercasedPrefixAndItsAccentFoldedForm(String query, String prefix, String folded) {
     when(cityRepository.searchByPrefix(prefix, folded)).thenReturn(List.of(ZURICH));
 
-    assertThat(cityService.search(query)).containsExactly(ZURICH);
+    assertThat(cityService.search(query)).containsExactly(new CityResponse(ZURICH.id(), "Zürich", "Zurich", "CH"));
   }
 
   @ParameterizedTest
