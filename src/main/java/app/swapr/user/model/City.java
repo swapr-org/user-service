@@ -21,21 +21,15 @@ public class City {
   @Column(name = "country_code")
   private String countryCode;
 
-  private double latitude;
-
-  private double longitude;
-
   City() {
   }
 
-  /** Creates a city with the given details and centre point. */
-  public City(UUID id, String name, String region, String countryCode, double latitude, double longitude) {
+  /** Creates a city with the given details. */
+  public City(UUID id, String name, String region, String countryCode) {
     this.id = id;
     this.name = name;
     this.region = region;
     this.countryCode = countryCode;
-    this.latitude = latitude;
-    this.longitude = longitude;
   }
 
   /** Returns the city's ID. */
@@ -56,15 +50,5 @@ public class City {
   /** Returns the two-letter country code. */
   public String countryCode() {
     return countryCode;
-  }
-
-  /** Returns the latitude of the city's centre. */
-  public double latitude() {
-    return latitude;
-  }
-
-  /** Returns the longitude of the city's centre. */
-  public double longitude() {
-    return longitude;
   }
 }

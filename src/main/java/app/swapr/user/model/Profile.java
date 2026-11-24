@@ -27,9 +27,6 @@ public class Profile {
   @Column(name = "radius_km")
   private int radiusKm;
 
-  @Column(name = "created_at", insertable = false, updatable = false)
-  private Instant createdAt;
-
   @Column(name = "updated_at")
   private Instant updatedAt;
 
@@ -37,18 +34,17 @@ public class Profile {
   }
 
   /** Creates a profile with the given details. */
-  public Profile(UUID id, String displayName, City city, int radiusKm, Instant createdAt, Instant updatedAt) {
+  public Profile(UUID id, String displayName, City city, int radiusKm, Instant updatedAt) {
     this.id = id;
     this.displayName = displayName;
     this.city = city;
     this.radiusKm = radiusKm;
-    this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
 
   /** Returns a copy with the name, city and radius replaced, updated at {@code now}. */
   public Profile replaced(String displayName, City city, int radiusKm, Instant now) {
-    return new Profile(id, displayName, city, radiusKm, createdAt, now);
+    return new Profile(id, displayName, city, radiusKm, now);
   }
 
   /** Returns whether the profile has a display name and a city. */

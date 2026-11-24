@@ -36,8 +36,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProfileServiceImplTest {
 
   private static final UUID USER_ID = UUID.randomUUID();
-  private static final City ZURICH = new City(UUID.randomUUID(), "Zürich", "Zurich", "CH", 47.36667, 8.55);
-  private static final City LONDON = new City(UUID.randomUUID(), "London", "England", "GB", 51.50853, -0.12574);
+  private static final City ZURICH = new City(UUID.randomUUID(), "Zürich", "Zurich", "CH");
+  private static final City LONDON = new City(UUID.randomUUID(), "London", "England", "GB");
 
   @Mock
   private ProfileRepository profileRepository;
@@ -175,11 +175,11 @@ class ProfileServiceImplTest {
   }
 
   private static Profile blank() {
-    return new Profile(USER_ID, null, null, 25, null, null);
+    return new Profile(USER_ID, null, null, 25, null);
   }
 
   private static Profile complete() {
-    return new Profile(USER_ID, "Ben", ZURICH, 40, null, null);
+    return new Profile(USER_ID, "Ben", ZURICH, 40, null);
   }
 
   private static UpdateProfileRequest request(String displayName, String cityId, String radiusKm) {

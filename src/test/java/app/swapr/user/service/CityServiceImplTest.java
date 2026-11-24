@@ -27,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CityServiceImplTest {
 
-  private static final City ZURICH = new City(UUID.randomUUID(), "Zürich", "Zurich", "CH", 47.36667, 8.55);
+  private static final City ZURICH = new City(UUID.randomUUID(), "Zürich", "Zurich", "CH");
 
   @Mock
   private CityRepository cityRepository;
