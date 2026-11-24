@@ -29,6 +29,7 @@ jobs:
 
   native-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3

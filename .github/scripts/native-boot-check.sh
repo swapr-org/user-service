@@ -8,7 +8,9 @@ NET="user-service-boot-${SUFFIX}"
 PG="user-service-boot-pg-${SUFFIX}"
 APP="user-service-boot-app-${SUFFIX}"
 HOST_PORT=18081
-LIMIT_SECONDS=120
+DB_LIMIT_SECONDS=120
+APP_LIMIT_SECONDS=120
+HEALTH_TIMEOUT_SECONDS=10
 
 cleanup() {
   docker rm -f "$APP" "$PG" >/dev/null 2>&1
@@ -21,9 +23,25 @@ docker run -d --name "$PG" --network "$NET" \
   -e POSTGRES_DB=user_service -e POSTGRES_USER=user_service -e POSTGRES_PASSWORD=user_service \
   postgis/postgis:17-3.6 >/dev/null || exit 1
 
-until docker exec "$PG" pg_isready -h 127.0.0.1 -U user_service -d user_service >/dev/null 2>&1; do
+db_ready=""
+for _ in $(seq 1 "$DB_LIMIT_SECONDS"); do
+  if docker exec "$PG" pg_isready -h 127.0.0.1 -U user_service -d user_service >/dev/null 2>&1; then
+    db_ready=yes
+    break
+  fi
+  if [ "$(docker inspect -f '{{.State.Running}}' "$PG")" != "true" ]; then
+    break
+  fi
   sleep 1
 done
+
+if [ -z "$db_ready" ]; then
+  echo "::group::database log"
+  docker logs "$PG" 2>&1
+  echo "::endgroup::"
+  echo "::error::database exited or was not ready within ${DB_LIMIT_SECONDS}s"
+  exit 1
+fi
 
 docker run -d --name "$APP" --network "$NET" -p "${HOST_PORT}:8080" \
   -e SPRING_PROFILES_ACTIVE=qa \
@@ -34,7 +52,7 @@ docker run -d --name "$APP" --network "$NET" -p "${HOST_PORT}:8080" \
   "$IMAGE" >/dev/null || exit 1
 
 verdict=""
-for _ in $(seq 1 "$LIMIT_SECONDS"); do
+for _ in $(seq 1 "$APP_LIMIT_SECONDS"); do
   logs=$(docker logs "$APP" 2>&1)
   if grep -q 'Application run failed' <<<"$logs" || [ "$(docker inspect -f '{{.State.Running}}' "$APP")" != "true" ]; then
     verdict=RED
@@ -48,16 +66,19 @@ for _ in $(seq 1 "$LIMIT_SECONDS"); do
 done
 
 if [ "$verdict" = GREEN ]; then
-  health=$(curl -sS "http://localhost:${HOST_PORT}/actuator/health")
-  echo "health: ${health}"
-  grep -q '"status":"UP"' <<<"$health" || verdict=RED
+  if health=$(curl -sSf --max-time "$HEALTH_TIMEOUT_SECONDS" "http://localhost:${HOST_PORT}/actuator/health"); then
+    echo "health: ${health}"
+    jq -e '.status == "UP"' >/dev/null <<<"$health" || verdict=RED
+  else
+    verdict=RED
+  fi
 fi
 
 if [ "$verdict" != GREEN ]; then
   echo "::group::application log"
   docker logs "$APP" 2>&1
   echo "::endgroup::"
-  echo "::error::native boot check failed: ${verdict:-timed out after ${LIMIT_SECONDS}s}"
+  echo "::error::native boot check failed: ${verdict:-timed out after ${APP_LIMIT_SECONDS}s}"
   exit 1
 fi
 
