@@ -2,7 +2,7 @@ name: pipeline
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -27,8 +27,25 @@ jobs:
           cache: maven
       - run: ./mvnw -B verify
 
+  native-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: native-check:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: bash .github/scripts/native-boot-check.sh
+        env:
+          IMAGE: native-check:${{ github.sha }}
+
   image:
-    needs: verify
+    needs: [verify, native-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -51,6 +68,7 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.name.outputs.image }}
+          cache-from: type=gha
 
   deploy-qa:
     needs: image
