@@ -72,7 +72,7 @@ City data from GeoNames (geonames.org), licensed under CC BY 4.0.
 4. `e2e` runs the whole integration test suite against QA by calling `integration-test-suite`'s reusable workflow. A failing suite skips `deploy-prod`, so no prod approval is offered.
 5. `deploy-prod` waits for approval on the GitHub Environment `prod`, then deploys the same image to prod and waits until it is live. It never rebuilds, so prod runs only what passed in QA.
 
-Both deploy jobs run `.github/scripts/render-deploy.sh`. It triggers the deploy hook, reads the deploy ID from the response, sleeps 5 minutes, then polls the Render API every 15 seconds until the deploy is `live`. A failed, cancelled or replaced deploy, an error response, or no live deploy 15 minutes after the trigger fails the job with an `::error::` annotation naming the environment, the deploy ID and the last status. Render 5xx responses are retried until the limit.
+Both deploy jobs run `.github/scripts/render-deploy.sh`. It triggers the deploy hook, reads the deploy ID from the response, then polls the Render API straight away and every 15 seconds until the deploy is `live`. A failed, cancelled or replaced deploy, an error response, or no live deploy 15 minutes after the trigger fails the job with an `::error::` annotation naming the environment, the deploy ID and the last status. Render 5xx responses are retried until the limit.
 
 The workflow has one concurrency group per branch, so runs on `main` go one at a time from QA deploy through prod deploy, and a later merge can never replace the QA build while an earlier one is being tested. A run waiting for prod approval holds the group, so approve or reject it to let the next merge deploy. Only the newest queued run is kept. After a deploy, check `/actuator/health` by hand and confirm `db` is `UP`.
 
@@ -87,6 +87,7 @@ Follow these steps to start a new service, for example `listing-service`, from t
    - `artifactId`, `name` and `description` in `pom.xml`;
    - the base package `app.swapr.user` and `UserServiceApplication` (for example `app.swapr.listing` and `ListingServiceApplication`), including the test classes;
    - `spring.application.name` in `application.yaml`;
+   - the `server.port` default in `application.yaml` and the `PORT` row in this README, set to a local port no other service uses;
    - the database name and user in `docker-compose.yml`;
    - the native executable path in the `Dockerfile` (`target/<artifactId>`);
    - `SERVICE_NAME` in `.github/workflows/pipeline.yml`, which names the image `ghcr.io/<org>/<service>`;
