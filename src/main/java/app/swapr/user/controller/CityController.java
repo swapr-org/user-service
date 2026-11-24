@@ -1,6 +1,7 @@
 package app.swapr.user.controller;
 
 import app.swapr.user.dto.CityResponse;
+import app.swapr.user.exception.ValidationException;
 import app.swapr.user.service.CityService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +20,7 @@ class CityController {
   }
 
   @GetMapping
-  List<CityResponse> search(@RequestParam(required = false) String query) {
+  List<CityResponse> search(@RequestParam(required = false) String query) throws ValidationException {
     return cities.search(query).stream().map(CityResponse::from).toList();
   }
 }

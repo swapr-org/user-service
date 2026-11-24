@@ -21,7 +21,7 @@ class InternalTokenFilter extends OncePerRequestFilter {
 
   private final byte[] token;
 
-  InternalTokenFilter(String token) {
+  InternalTokenFilter(String token) throws IllegalStateException {
     if (token == null || token.isBlank()) {
       throw new IllegalStateException("INTERNAL_TOKEN must be set to a non-blank value");
     }

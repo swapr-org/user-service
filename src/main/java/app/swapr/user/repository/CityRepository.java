@@ -7,8 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface CityRepository extends JpaRepository<City, UUID> {
+/** The stored GeoNames cities. */
+public interface CityRepository extends JpaRepository<City, UUID> {
 
+  /**
+   * Returns at most 10 cities, most populous first, whose lowercased name or ASCII name matches the
+   * {@code LIKE} pattern {@code prefix}, or whose folded name matches {@code foldedPrefix}. Both patterns
+   * escape wildcards with a backslash.
+   */
   @Query(nativeQuery = true, value =
       """
       SELECT * FROM cities
