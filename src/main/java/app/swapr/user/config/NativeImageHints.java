@@ -1,6 +1,8 @@
 package app.swapr.user.config;
 
+import app.swapr.user.exception.FieldError;
 import java.util.UUID;
+import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.context.annotation.Configuration;
@@ -13,5 +15,6 @@ class NativeImageHints implements RuntimeHintsRegistrar {
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
     hints.reflection().registerType(UUID[].class);
+    new BindingReflectionHintsRegistrar().registerReflectionHints(hints.reflection(), FieldError.class);
   }
 }
